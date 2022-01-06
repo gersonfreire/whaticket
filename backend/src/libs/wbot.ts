@@ -10,6 +10,11 @@ interface Session extends Client {
   id?: number;
 }
 
+interface Pup {
+  executablePath?: string,  
+  args: string[]
+}
+
 const sessions: Session[] = [];
 
 const syncUnreadMessages = async (wbot: Session) => {
@@ -43,11 +48,19 @@ export const initWbot = async (whatsapp: Whatsapp): Promise<Session> => {
         sessionCfg = JSON.parse(whatsapp.session);
       }
 
+      let pupLaunch: Pup = {
+        executablePath: '/usr/bin/chromium-browser',  
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      }
+
+      if(process.env.NODE_ENV === "DEVELOPMENT") {
+        delete pupLaunch.executablePath;
+      } 
+
       const wbot: Session = new Client({
+        clientId: whatsapp.name + String(whatsapp.id),
         session: sessionCfg,
-        puppeteer: {
-          executablePath: process.env.CHROME_BIN || undefined
-        }
+        puppeteer: pupLaunch
       });
 
       wbot.initialize();
@@ -71,6 +84,7 @@ export const initWbot = async (whatsapp: Whatsapp): Promise<Session> => {
 
       wbot.on("authenticated", async session => {
         logger.info(`Session: ${sessionName} AUTHENTICATED`);
+								   
         await whatsapp.update({
           session: JSON.stringify(session)
         });
@@ -124,7 +138,7 @@ export const initWbot = async (whatsapp: Whatsapp): Promise<Session> => {
 
         resolve(wbot);
       });
-    } catch (err) {
+    } catch (err : any) {
       logger.error(err);
     }
   });
@@ -146,7 +160,7 @@ export const removeWbot = (whatsappId: number): void => {
       sessions[sessionIndex].destroy();
       sessions.splice(sessionIndex, 1);
     }
-  } catch (err) {
+  } catch (err: any) {
     logger.error(err);
   }
 };
